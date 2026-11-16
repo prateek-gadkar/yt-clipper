@@ -33,8 +33,10 @@ leaves your machine.
 
 ```bash
 git clone <this-repo-url> && cd yt-clipper
-
+# Windows users: run this inside WSL (Ubuntu) and clone into your WSL home (~) —
+# NEVER into /mnt/c/Windows/... (read-only, and the 9P bridge is painfully slow)
 ./scripts/install.sh            # apt: ffmpeg; venv: streamlink + pytchat; builds whisper.cpp; downloads the model
+
 cp config.example.toml config.toml
 $EDITOR config.toml             # point it at a channel (Twitch) or a live URL (YouTube) — see below
 
