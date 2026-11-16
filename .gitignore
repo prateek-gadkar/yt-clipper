@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+work/
+clips/
+models/
+demo-out/
+config.toml
+*.ts
+*.wav

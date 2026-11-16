@@ -1,0 +1,31 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# yt-clipper Clip Watcher — personal config
+#   cp config.example.toml config.toml   (then edit)
+# ─────────────────────────────────────────────────────────────────────────────
+
+[twitch]
+# The channel to watch — the name in twitch.tv/<name>, WITHOUT the leading '#'.
+channel = "your_channel_here"
+quality = "best"
+retry_streams = 30          # seconds between "are they live yet?" checks
+
+[paths]
+work_dir      = "./work"    # raw stream.ts + chat.log per session land here
+clips_dir     = "./clips"   # finished clips + manifest.jsonl
+whisper_model = "./models/ggml-medium.en.bin"   # captions model (free download, see README)
+
+[spike]
+bucket_seconds     = 10     # messages per 10 seconds
+window_seconds     = 300    # compare against the trailing 5 minutes
+multiplier         = 3.0    # spike = 3x the trailing average
+min_messages       = 6      # ignore near-silent baselines
+merge_gap_seconds  = 30     # glue spiking buckets <=30s apart into one moment
+pre_pad_seconds    = 8.0    # chat reacts AFTER the moment — start the cut early
+post_pad_seconds   = 10.0   # let the reaction tail play out
+max_clip_seconds   = 120.0  # hard cap per clip
+min_clip_seconds   = 12.0
+
+[captions]
+enabled  = true             # whisper.cpp, runs locally, $0
+burn_in  = true             # also render *.captioned.mp4 with subtitles baked in
+language = "en"
