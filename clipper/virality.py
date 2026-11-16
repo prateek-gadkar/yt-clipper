@@ -1,4 +1,4 @@
-"""Virality ranking — free, local, honest.
+"""Virality ranking — free, local heuristic.
 
 Scores every cut clip 0-100 from chat energy alone (no API, no LLM, no
 network). The ranking answers "which of these clips should I post first?" —

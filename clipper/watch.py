@@ -1,4 +1,4 @@
-"""The 'while you sleep' command: wait for live -> record + log chat -> auto-clip, rank, caption.
+"""Orchestrates the full pipeline: wait for live -> record + log chat -> cut -> rank -> caption.
 
 Sources (pick one in config.toml, or override on the command line):
   * Twitch  — anonymous read-only IRC chat, channel from twitch.channel
@@ -137,7 +137,6 @@ def cmd_watch(cfg, args=None) -> int:
     summary = finalize.finalize(cfg, stream_ts, chat_log, rec_start_unix, clips_dir, ffmpeg,
                                 source_url=source_url, credit=credit, label=label)
     print(f"[clip-watcher] done. {len(summary['clips'])} clip(s) in {clips_dir}")
-    print("[clip-watcher] Post smart: ranked.json lists the best bets first (★ = recommended,")
-    print("               covering BEST/WORST/SURPRISING/FUNNY/FAIL). But remember: these are the")
-    print("               creator's footage — get permission before re-uploading. See README#legal.")
+    print("[clip-watcher] ranked.json lists clips best-first (★ = recommended, one per genre).")
+    print("[clip-watcher] Clips embed the source creator's credit; ask them before reposting.")
     return 0

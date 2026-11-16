@@ -1,7 +1,7 @@
 """yt-clipper Clip Watcher — command line interface.
 
   python -m clipper doctor              check what's installed
-  python -m clipper watch               the whole loop: wait for live -> record -> auto-clip -> caption
+  python -m clipper watch               wait for live, record, cut, rank and caption
   python -m clipper chatlog             log chat only
   python -m clipper analyze chat.log    print spikes (the free replacement for the paid LLM step)
   python -m clipper cut stream.ts ...   cut clips from a finished recording
