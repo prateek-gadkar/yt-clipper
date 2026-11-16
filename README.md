@@ -45,6 +45,38 @@ python -m clipper doctor        # every line should say [OK]
 python -m clipper watch         # ← the "while you sleep" command
 ```
 
+## Already set up, but C: is full? Relocate off C:
+
+`~` inside WSL is a virtual disk that lives on **C:** by default — recordings
+(4–8 GB/hour), the 1.5 GB Whisper model and your clips all count against C:.
+Two fixes:
+
+**Option A — move the whole WSL distro to another drive** (one command,
+WSL 2.3.11+; run from PowerShell with WSL stopped; do this *before* installing):
+
+```powershell
+wsl --shutdown
+wsl --manage Ubuntu --move "D:\WSL\Ubuntu"
+```
+
+(On older WSL: `wsl --export Ubuntu D:\backup\ubuntu.tar` →
+`wsl --unregister Ubuntu` → `wsl --import Ubuntu D:\WSL\Ubuntu D:\backup\ubuntu.tar`,
+then `wsl --manage Ubuntu --set-default-user <you>`. Export *before* you
+unregister — the unregister deletes the distro.)
+
+**Option B — keep code on C:, point the heavy paths at D:** in `config.toml`
+(recordings, clips, model — the bulk of the disk usage):
+
+```toml
+[paths]
+work_dir      = "/mnt/d/clipwatch/work"
+clips_dir     = "/mnt/d/clipwatch/clips"
+whisper_model = "/mnt/d/clipwatch/models/ggml-medium.en.bin"
+```
+
+Don't *build* whisper.cpp or clone the repo under `/mnt/d` (9P bridge = slow);
+code in `~`, data on D:.
+
 `watch` does the whole loop by itself:
 
 1. **Waits for live** — `streamlink --retry-streams 30 --retry-max 0` polls
