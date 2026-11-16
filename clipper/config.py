@@ -55,6 +55,10 @@ DEFAULTS = {
         "enabled": True,               # rank cut clips 0-100, tag genres, write clips/ranked.json
         "max_clips": 0,                # 0 = caption everything; N = caption only the N recommended clips
     },
+    "shorts": {
+        "enabled": True,               # also render *_shorts.mp4 vertical 9:16 for every clip
+        "mode": "blur",                # "blur" = blurred-fill background; "crop" = center 9:16 crop
+    },
     "captions": {
         "enabled": True,               # whisper.cpp is free and local
         "burn_in": True,               # bake subtitles into a *.captioned.mp4

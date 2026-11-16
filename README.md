@@ -53,8 +53,9 @@ python -m clipper watch         # ← the "while you sleep" command
    message timestamped into `chat.log`.
 3. **Stream ends** → spikes detected locally → ffmpeg cuts one clip per moment
    into `clips/` → every clip **scored 0–100 for virality and tagged by genre**
-   (`clips/ranked.json`) → whisper.cpp transcribes + burns subtitles in →
-   `clips/manifest.jsonl` updated with credits.
+   (`clips/ranked.json`) → whisper.cpp transcribes + burns subtitles in → each
+   clip **re-rendered as a vertical 1080x1920 `*_shorts.mp4`** → `clips/manifest.jsonl`
+   updated with credits.
 
 Leave it running overnight. `Ctrl+C` still finalizes what it has.
 
@@ -83,6 +84,88 @@ channel = "some_channel"      # the name in twitch.tv/<name>, no leading '#'
 ```
 ```bash
 python -m clipper watch
+```
+
+## From "I have permission" to posting — the GTA 6 launch runbook
+
+GTA VI launches **Thu Nov 19, 2026**. Roughly 30 minutes of setup, then the
+machine does the work while you sleep.
+
+**Phase 0 — today (setup, ~30 min)**
+
+```bash
+git clone <repo-url> && cd yt-clipper && git checkout arena/6d91f681-yt-clipper
+./scripts/install.sh                      # Linux/macOS — Windows: use WSL, or
+                                          # pip install streamlink pytchat + install ffmpeg yourself
+cp config.example.toml config.toml
+nano config.toml                          # platform, channel/live-URL, quality, [shorts] enabled
+source .venv/bin/activate
+python -m clipper doctor                  # all [OK] (whisper lines: fine to be missing for now)
+python -m clipper demo                    # must print PASS — proves your machine can run it
+```
+
+- Set `quality` in config: `best` needs ~4–8 GB disk per stream hour; use
+  e.g. `720p` to halve it.
+- Whisper: `medium.en` (1.5 GB) is best for accuracy; `base.en` is fast on
+  launch night. Captions are optional — clips cut without them.
+- **Back up the permission.** Screenshot the DM/email where the streamer gave
+  the OK. If a Content ID claim comes in for their footage, that screenshot is
+  your dispute evidence.
+
+**Phase 1 — before launch day**
+
+- Confirm *when* they go live for GTA 6 day 1 (check their socials — many
+  launch-day streams start before midnight local time for that region) and
+  **which platform** it's on.
+- Confirm the credit format they want, and whether any revenue share was
+  agreed — put it in one written message so both sides remember.
+- Keep `[shorts] enabled = true` and `mode = "blur"` so every clip also
+  renders a vertical `*_shorts.mp4` (1080x1920, blurred background, burned-in
+  subs if captions ran). That's the file you post.
+
+**Phase 2 — launch night (Nov 18→19)**
+
+```bash
+cd yt-clipper && source .venv/bin/activate
+python -m clipper watch                   # waits for the stream; starts recording the moment it's live
+# multiple permitted streamers at once, one terminal each:
+python -m clipper --config streamer_a.toml watch
+python -m clipper --config streamer_b.toml watch
+```
+
+Leave it running. `Ctrl+C` any time — clips are finalized from what was recorded.
+
+**Phase 3 — the morning after**
+
+1. Open `clips/ranked.json` — clips sorted best-first, ★ = recommended
+   (overall top 3 + best of each genre). The `shorts` path is on each entry;
+   landscape masters are alongside for regular uploads.
+2. Post the ★ Shorts. Upload settings:
+   - Title format: `<streamer> <what happened> | GTA 6 launch` — scannable,
+     searchable, contains the streamer's name and GTA 6.
+   - Description: `Clip from <streamer>'s stream — used with permission.
+     Go watch live: <link>  #GTA6 #GTA6Launch #Shorts` — the link + permission
+     note do double duty (credit + dispute evidence).
+   - Add `#Shorts` and vertical upload; YouTube auto-detects it.
+3. **One Short per genre per day**, in rank order: best hype play, worst
+   throw, most surprising moment, funniest fail. Your differentiator vs.
+   other clip channels is full-spectrum coverage + posting speed, not volume.
+4. After 24–48 h, check YouTube Studio: which genre got the watch-throughs?
+   That's your next month's content mix. Extend `GENRE_LEXICONS` in
+   `virality.py` with your community's emotes to sharpen tagging.
+5. Cadence: 1–3 Shorts/day per streamer. Ten uploads in an hour gets flagged
+   as spam and spreads your impressions thinner — drip-feed.
+
+**If a claim does land** (most often: background music, not the streamer):
+dispute with your permission screenshot if it's the streamer's footage, or
+mute/replace the audio on that video. Keep the permission file for every
+streamer you clip.
+
+**Shorts conversion commands**
+
+```
+python -m clipper shorts clip.mp4                 # → clip_shorts.mp4 (1080x1920, blurred fill)
+python -m clipper shorts clip.mp4 --mode crop     # full-bleed center crop instead
 ```
 
 ## YouTube live too
@@ -169,6 +252,7 @@ python -m clipper chatlog            # chat logging only
 python -m clipper analyze chat.log [--virality]      # print spikes + cut windows (+ ranking)
 python -m clipper cut stream.ts chat.log [--rec-start UNIXTS]
 python -m clipper caption clip.mp4 [--no-burn]
+python -m clipper shorts clip.mp4 [--mode blur|crop] # vertical 9:16 for Shorts
 python -m clipper doctor             # dependency/config health check
 python -m clipper demo               # synthetic end-to-end proof
 ```

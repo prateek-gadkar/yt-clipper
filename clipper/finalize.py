@@ -91,7 +91,29 @@ def finalize(cfg, stream_ts: Path, chat_log: Path, rec_start_unix: float, clips_
             if clip["captions"].get("skipped"):
                 print(f"  captions skipped: {clip['captions']['skipped']}")
 
+    shorts_cfg = cfg.section("shorts")
+    if shorts_cfg.get("enabled", False):
+        from . import shorts as _shorts
+
+        mode = shorts_cfg.get("mode", "blur")
+        for clip in clips:
+            captioned = (clip.get("captions") or {}).get("captioned")
+            src = captioned or clip["clip"]  # Shorts keep the burned-in subs when available
+            out = Path(clips_dir) / (Path(clip["clip"]).stem + "_shorts.mp4")
+            try:
+                print(f"Shorts render ({mode}) {out.name} ...")
+                _shorts.to_vertical(ffmpeg, src, out, mode)
+                clip["shorts"] = str(out)
+            except Exception as exc:
+                print(f"  shorts render failed: {exc}")
+                clip["shorts"] = None
+
+        if vir_cfg.get("enabled", True):
+            # rewrite so ranked.json carries the shorts paths too
+            virality.write_ranked(clips, Path(clips_dir) / "ranked.json")
+
     cut.append_manifest(clips, Path(clips_dir) / "manifest.jsonl", channel)
+
     for clip in clips:
         summary["clips"].append(clip)
     print(f"Manifest: {Path(clips_dir) / 'manifest.jsonl'}")

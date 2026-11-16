@@ -238,6 +238,7 @@ def write_ranked(scored: list[dict], path: str | Path) -> None:
             "recommended": e["virality"]["recommended"],
             "genres": e["virality"]["genres"],
             "clip": e["clip"],
+            "shorts": e.get("shorts"),
             "start_iso": e.get("start_iso"),
             "duration_seconds": e.get("duration_seconds"),
             "credit": e.get("credit"),

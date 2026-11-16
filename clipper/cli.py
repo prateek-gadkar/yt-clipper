@@ -127,6 +127,18 @@ def cmd_cut(cfg, args) -> int:
     return 0
 
 
+def cmd_shorts(cfg, args) -> int:
+    from . import shorts as _shorts
+
+    ffmpeg = find_ffmpeg()
+    if not ffmpeg:
+        sys.exit("ffmpeg not found (see: python -m clipper doctor)")
+    mode = args.mode or cfg.get("shorts", "mode", default="blur")
+    out = _shorts.to_vertical(ffmpeg, args.clip, args.out, mode)
+    print(f"vertical Short written: {out}")
+    return 0
+
+
 def cmd_caption(cfg, args) -> int:
     ffmpeg = find_ffmpeg()
     if not ffmpeg:
@@ -173,6 +185,13 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--rec-start", type=float, default=None,
                     help="unix time the recording started (default: estimated from file mtime/size)")
     sp.set_defaults(func=cmd_cut)
+
+    sp = sub.add_parser("shorts", help="render a vertical 9:16 Shorts MP4 from a clip")
+    sp.add_argument("clip")
+    sp.add_argument("--mode", choices=["blur", "crop"], default=None,
+                    help="blur = blurred fill (default), crop = full-bleed center crop")
+    sp.add_argument("--out", help="output path (default: <clip>_shorts.mp4)")
+    sp.set_defaults(func=cmd_shorts)
 
     sp = sub.add_parser("caption", help="whisper.cpp captions for one clip")
     sp.add_argument("clip")

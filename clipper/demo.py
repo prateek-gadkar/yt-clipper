@@ -98,6 +98,14 @@ def run_demo(cfg, keep: bool = False) -> int:
 
         messages = read_chat_log(str(chat_log))
         clips = virality.score_clips(messages, clips, bucket_seconds=int(sp.get("bucket_seconds", 10)))
+        from . import shorts as _shorts
+
+        try:
+            vout = _shorts.to_vertical(ffmpeg, clips[0]["clip"], None, "blur")
+            clips[0]["shorts"] = str(vout)
+            print(f"[demo] vertical Short: {vout}")
+        except Exception as exc:
+            print(f"[demo] shorts render failed: {exc}")
         virality.write_ranked(clips, out_dir / "clips" / "ranked.json")
         virality.print_ranked(clips)
         cut.append_manifest(clips, out_dir / "clips" / "manifest.jsonl", "demo_channel")

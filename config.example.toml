@@ -37,6 +37,10 @@ name = "youtube_live"      # label for filenames/credits — use the streamer's 
 enabled   = true           # score every clip 0-100, tag genres, write clips/ranked.json
 max_clips = 0              # 0 = caption everything; N = caption only the N recommended clips
 
+[shorts]
+enabled = true             # also render *_shorts.mp4 (1080x1920) for every clip — ready for Shorts
+mode    = "blur"           # "blur" = blurred 16:9 fill (keeps the whole HUD) | "crop" = full-bleed center crop
+
 [captions]
 enabled  = true             # whisper.cpp, runs locally, $0
 burn_in  = true             # also render *.captioned.mp4 with subtitles baked in
