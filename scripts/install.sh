@@ -10,7 +10,7 @@ sudo apt-get install -y ffmpeg git curl cmake build-essential python3 python3-ve
 echo "==> Python venv + streamlink (the recorder)"
 python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
-.venv/bin/pip install streamlink
+.venv/bin/pip install streamlink pytchat
 
 echo "==> whisper.cpp (local captions) — building from source"
 WHISPER_DIR="${HOME}/whisper.cpp"

@@ -42,6 +42,19 @@ DEFAULTS = {
         "max_clip_seconds": 120.0,     # hard cap per clip
         "min_clip_seconds": 12.0,      # ignore insubstantial cuts
     },
+    "source": {
+        # "twitch" or "youtube" (or pass --url on the command line for YouTube)
+        "platform": "twitch",
+    },
+    "youtube": {
+        # the YouTube live stream to watch, e.g. https://www.youtube.com/watch?v=VIDEO_ID
+        "url": "",
+        "name": "youtube_live",        # label used in filenames and credits
+    },
+    "virality": {
+        "enabled": True,               # rank cut clips 0-100, tag genres, write clips/ranked.json
+        "max_clips": 0,                # 0 = caption everything; N = caption only the N recommended clips
+    },
     "captions": {
         "enabled": True,               # whisper.cpp is free and local
         "burn_in": True,               # bake subtitles into a *.captioned.mp4

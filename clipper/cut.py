@@ -22,6 +22,8 @@ def cut_clips(
     windows,
     clips_dir: str | Path,
     channel: str,
+    source_url: str | None = None,
+    credit: str | None = None,
 ):
     clips_dir = Path(clips_dir)
     clips_dir.mkdir(parents=True, exist_ok=True)
@@ -32,10 +34,9 @@ def cut_clips(
         duration = b - a
         stamp = datetime.fromtimestamp(a).strftime("%Y%m%d_%H%M%S")
         out = clips_dir / f"{channel}_{stamp}_clip{idx}.mp4"
-        credit = (
-            f"Clip from {channel}'s live stream - "
-            f"https://www.twitch.tv/{channel} - credit & link the streamer"
-        )
+        url = source_url or f"https://www.twitch.tv/{channel}"
+        if credit is None:
+            credit = f"Clip from {channel}'s live stream - {url} - credit & link the creator"
         cmd = [
             ffmpeg, "-y",
             "-ss", f"{offset:.2f}",
@@ -53,7 +54,7 @@ def cut_clips(
                 "offset_seconds": round(offset, 2),
                 "duration_seconds": round(duration, 2),
                 "start_iso": datetime.fromtimestamp(a).isoformat(timespec="seconds"),
-                "source_url": f"https://www.twitch.tv/{channel}",
+                "source_url": url,
                 "credit": credit,
             }
         )

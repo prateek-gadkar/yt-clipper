@@ -93,6 +93,13 @@ def run_demo(cfg, keep: bool = False) -> int:
             check=True, capture_output=True,
         )
         clips = cut.cut_clips(ffmpeg, fake_vod, t0, windows, out_dir / "clips", "demo_channel")
+        from . import virality
+        from .spikes import read_chat_log
+
+        messages = read_chat_log(str(chat_log))
+        clips = virality.score_clips(messages, clips, bucket_seconds=int(sp.get("bucket_seconds", 10)))
+        virality.write_ranked(clips, out_dir / "clips" / "ranked.json")
+        virality.print_ranked(clips)
         cut.append_manifest(clips, out_dir / "clips" / "manifest.jsonl", "demo_channel")
         for clip in clips:
             print(f"[demo] cut clip: {clip['clip']} ({clip['duration_seconds']}s)")

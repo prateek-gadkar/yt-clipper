@@ -25,6 +25,18 @@ post_pad_seconds   = 10.0   # let the reaction tail play out
 max_clip_seconds   = 120.0  # hard cap per clip
 min_clip_seconds   = 12.0
 
+# ── pick ONE source ───────────────────────────────────────────────────────────
+[source]
+platform = "twitch"        # "twitch" or "youtube"
+
+[youtube]
+url  = ""                  # e.g. https://www.youtube.com/watch?v=VIDEO_ID  (live streams only)
+name = "youtube_live"      # label for filenames/credits — use the streamer's handle
+
+[virality]
+enabled   = true           # score every clip 0-100, tag genres, write clips/ranked.json
+max_clips = 0              # 0 = caption everything; N = caption only the N recommended clips
+
 [captions]
 enabled  = true             # whisper.cpp, runs locally, $0
 burn_in  = true             # also render *.captioned.mp4 with subtitles baked in

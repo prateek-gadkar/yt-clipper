@@ -25,9 +25,9 @@ from .irc import ChatLogger
 
 
 
-def _print_spikes(chat_log: str, cfg) -> int:
+def _print_spikes(chat_log: str, cfg, show_virality: bool = False) -> int:
     analysis = finalize.analyze(chat_log, cfg)
-    print(f"messages : {analysis['messages']}")
+    print(f"messages : {analysis['message_count']}")
     if not analysis["spikes"]:
         print("spikes   : none (chat never hit 3x its trailing 5-minute average)")
         return 0
@@ -42,6 +42,19 @@ def _print_spikes(chat_log: str, cfg) -> int:
             f"window {j}: {datetime.fromtimestamp(a).isoformat(timespec='seconds')} -> "
             f"{datetime.fromtimestamp(b).isoformat(timespec='seconds')}  ({b - a:.0f}s)"
         )
+    if show_virality:
+        from . import virality as _vir
+
+        entries = [
+            {
+                "clip": f"<window-{j}>",
+                "start_iso": datetime.fromtimestamp(a).isoformat(timespec="seconds"),
+                "duration_seconds": b - a,
+            }
+            for j, (a, b) in enumerate(analysis["windows"], 1)
+        ]
+        bucket = int(cfg.section("spike").get("bucket_seconds", 10))
+        _vir.print_ranked(_vir.score_clips(analysis["messages"], entries, bucket_seconds=bucket))
     return 0
 
 
@@ -65,6 +78,14 @@ def cmd_doctor(cfg) -> int:
     check("streamlink", bool(streamlink), "pip3 install --user streamlink  (or: scripts/install.sh)")
     if streamlink:
         print(f"         streamlink: {streamlink}")
+    try:
+        import pytchat  # noqa: F401
+
+        print("  [OK ] pytchat (YouTube live chat)")
+    except ImportError:
+        platform = cfg.get("source", "platform", default="twitch")
+        status = "MISSING" if platform == "youtube" else "missing (only needed for YouTube)"
+        print(f"  [{status}] pytchat  -> pip3 install pytchat  (or: scripts/install.sh)")
     ffmpeg = find_ffmpeg()
     check("ffmpeg", bool(ffmpeg), "sudo apt install ffmpeg   (or: pip3 install imageio-ffmpeg)")
     if ffmpeg:
@@ -79,7 +100,7 @@ def cmd_doctor(cfg) -> int:
 
 
 def cmd_analyze(cfg, args) -> int:
-    return _print_spikes(args.chat_log, cfg)
+    return _print_spikes(args.chat_log, cfg, show_virality=args.virality)
 
 
 def cmd_chatlog(cfg, args) -> int:
@@ -130,7 +151,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="command", required=True)
 
     sub.add_parser("doctor", help="check dependencies and config").set_defaults(func=lambda c, a: cmd_doctor(c))
-    sub.add_parser("watch", help="wait for live, record, auto-clip and caption").set_defaults(func=lambda c, a: watch.cmd_watch(c))
+    sp = sub.add_parser("watch", help="wait for live, record, auto-clip, rank and caption")
+    sp.add_argument("--url", help="YouTube live stream URL (overrides source.platform)")
+    sp.add_argument("--name", help="label for filenames/credits on YouTube (default: youtube_live)")
+    sp.set_defaults(func=lambda c, a: watch.cmd_watch(c, a))
 
     sp = sub.add_parser("chatlog", help="log chat only")
     sp.add_argument("--channel", help="override configured channel")
@@ -139,6 +163,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sp = sub.add_parser("analyze", help="print spikes in a chat.log")
     sp.add_argument("chat_log")
+    sp.add_argument("--virality", action="store_true", help="also print the virality ranking/genre tags per window")
     sp.set_defaults(func=cmd_analyze)
 
     sp = sub.add_parser("cut", help="cut clips from a finished recording + chat.log")

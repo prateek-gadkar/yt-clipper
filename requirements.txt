@@ -1,3 +1,4 @@
 streamlink>=6.0
+pytchat>=0.5.5
 # Optional, only needed if your system has no ffmpeg package:
 # imageio-ffmpeg>=0.4
