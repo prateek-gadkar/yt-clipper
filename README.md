@@ -91,6 +91,11 @@ python -m clipper watch
 python -m clipper watch --url https://www.youtube.com/watch?v=VIDEO_ID --name streamerhandle
 ```
 
+YouTube live quality names include the frame rate (`720p60`, `1080p60`); a
+plain `720p` doesn't exist there. Run `streamlink <url>` to list a stream's
+available qualities. As a safety net, if the requested quality can't start a
+recording, `watch` automatically retries once with `best`.
+
 `watch` waits for the stream to go live, records until it ends, then cuts,
 ranks, captions and (optionally) renders Shorts versions automatically.
 Interrupting with `Ctrl+C` still finalizes everything recorded so far.
