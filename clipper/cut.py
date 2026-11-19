@@ -47,7 +47,11 @@ def cut_clips(
             "-movflags", "+faststart",
             str(out),
         ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        try:
+            subprocess.run(cmd, check=True, capture_output=True)
+        except subprocess.CalledProcessError as exc:
+            tail = (exc.stderr or b"").decode("utf-8", "replace").strip()[-900:]
+            raise RuntimeError(f"ffmpeg cut failed (exit {exc.returncode}) for {out}: {tail}") from exc
         results.append(
             {
                 "clip": str(out),
