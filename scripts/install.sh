@@ -25,8 +25,12 @@ echo "    whisper-cli linked into ~/.local/bin (make sure it's on your PATH)"
 
 echo "==> Whisper model (~1.5 GB, free)"
 mkdir -p models
+if [ -f models/ggml-medium.en.bin ] && [ "$(stat -c%s models/ggml-medium.en.bin)" -lt 1000000000 ]; then
+  echo "    existing models/ggml-medium.en.bin is truncated (expected ~1.5G) — re-downloading"
+  rm -f models/ggml-medium.en.bin
+fi
 if [ ! -f models/ggml-medium.en.bin ]; then
-  curl -L --fail -o models/ggml-medium.en.bin \
+  curl -L --fail --retry 3 -o models/ggml-medium.en.bin \
     https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.en.bin
 fi
 
