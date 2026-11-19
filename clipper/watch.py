@@ -1,4 +1,4 @@
-"""The 'while you sleep' command: wait for live -> record + log chat -> auto-clip, rank, caption.
+"""Orchestrates the full pipeline: wait for live -> record + log chat -> cut -> rank -> caption.
 
 Sources (pick one in config.toml, or override on the command line):
   * Twitch  — anonymous read-only IRC chat, channel from twitch.channel
@@ -27,6 +27,38 @@ from .ytchat import YouTubeChatLogger
 
 def _slug(label: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "_", label).strip("_") or "clip"
+
+
+def _should_fallback(quality: str, recording_started: bool, already_fell_back: bool) -> bool:
+    """If streamlink exits without anything recorded, the requested quality
+    probably doesn't exist for this stream (YouTube live names qualities with
+    the frame rate, e.g. '720p60'). Fall back to 'best' exactly once."""
+    if recording_started or already_fell_back:
+        return False
+    return quality.lower() not in {"best", "worst", "best-audio", "worst-audio"}
+
+
+def _record_until_done(cmd, stream_ts: Path):
+    """Run streamlink; poll until it exits or the user hits Ctrl+C.
+    Returns (rec_start_unix|None, interrupted: bool, returncode|None)."""
+    proc = subprocess.Popen(cmd)
+    rec_start_unix: float | None = None
+    interrupted = False
+    try:
+        while proc.poll() is None:
+            if rec_start_unix is None and stream_ts.exists() and stream_ts.stat().st_size > 0:
+                rec_start_unix = time.time()
+                print(f"[clip-watcher] LIVE — recording started {datetime.fromtimestamp(rec_start_unix).isoformat(timespec='seconds')}")
+            time.sleep(1)
+    except KeyboardInterrupt:
+        interrupted = True
+        print("\n[clip-watcher] Ctrl+C — finalizing what we have...")
+        proc.terminate()
+        try:
+            proc.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    return rec_start_unix, interrupted, proc.returncode
 
 
 def cmd_watch(cfg, args=None) -> int:
@@ -90,35 +122,33 @@ def cmd_watch(cfg, args=None) -> int:
     chat_thread = threading.Thread(target=logger.run, args=(stop,), daemon=True, name="chat-logger")
     chat_thread.start()
 
-    cmd = [
+    base_cmd = [
         streamlink,
         record_url,
-        quality,
+        "QUALITY_PLACEHOLDER",
         "-o", str(stream_ts),
         "--retry-streams", str(retry),
         "--retry-max", "0",  # retry forever until live
     ]
-    proc = subprocess.Popen(cmd)
 
-    rec_start_unix: float | None = None
-    interrupted = False
-    try:
-        while proc.poll() is None:
-            if rec_start_unix is None and stream_ts.exists() and stream_ts.stat().st_size > 0:
-                rec_start_unix = time.time()
-                print(f"[clip-watcher] LIVE — recording started {datetime.fromtimestamp(rec_start_unix).isoformat(timespec='seconds')}")
-            time.sleep(1)
-    except KeyboardInterrupt:
-        interrupted = True
-        print("\n[clip-watcher] Ctrl+C — finalizing what we have...")
-        proc.terminate()
-        try:
-            proc.wait(timeout=15)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-    finally:
-        stop.set()
-        chat_thread.join(timeout=10)
+    def build(q: str):
+        cmd = list(base_cmd)
+        cmd[cmd.index("QUALITY_PLACEHOLDER")] = q
+        return cmd
+
+    asked_quality = quality
+    rec_start_unix, interrupted, rc = _record_until_done(build(quality), stream_ts)
+
+    fell_back = False
+    if not interrupted and _should_fallback(quality, rec_start_unix is not None, fell_back):
+        fell_back = True
+        print(f"[clip-watcher] '{quality}' didn't get a recording started (streamlink exited {rc}).")
+        print("[clip-watcher] retrying once with quality 'best' ...")
+        quality = "best"
+        rec_start_unix, interrupted, rc = _record_until_done(build(quality), stream_ts)
+
+    stop.set()
+    chat_thread.join(timeout=10)
 
     if rec_start_unix is None:
         if stream_ts.exists() and stream_ts.stat().st_size > 0:
@@ -128,7 +158,11 @@ def cmd_watch(cfg, args=None) -> int:
             rec_start_unix = time.time()
 
     if not stream_ts.exists() or stream_ts.stat().st_size == 0:
-        print("[clip-watcher] nothing was recorded (stream never went live?). Check the link/channel name.")
+        print("[clip-watcher] nothing was recorded. Likely causes:")
+        print(f"  - the requested quality '{asked_quality}' isn't offered by this stream")
+        print("    (run: streamlink <url>  to list available streams — YouTube uses names like 720p60)")
+        print("  - the URL/channel doesn't exist or isn't live yet")
+        print("  - region/account restrictions on the stream")
         return 1
 
     print(f"[clip-watcher] recording ended ({'interrupted by you' if interrupted else 'stream offline'}).")
@@ -137,7 +171,6 @@ def cmd_watch(cfg, args=None) -> int:
     summary = finalize.finalize(cfg, stream_ts, chat_log, rec_start_unix, clips_dir, ffmpeg,
                                 source_url=source_url, credit=credit, label=label)
     print(f"[clip-watcher] done. {len(summary['clips'])} clip(s) in {clips_dir}")
-    print("[clip-watcher] Post smart: ranked.json lists the best bets first (★ = recommended,")
-    print("               covering BEST/WORST/SURPRISING/FUNNY/FAIL). But remember: these are the")
-    print("               creator's footage — get permission before re-uploading. See README#legal.")
+    print("[clip-watcher] ranked.json lists clips best-first (★ = recommended, one per genre).")
+    print("[clip-watcher] Clips embed the source creator's credit; ask them before reposting.")
     return 0

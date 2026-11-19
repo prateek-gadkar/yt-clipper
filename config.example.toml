@@ -6,7 +6,7 @@
 [twitch]
 # The channel to watch — the name in twitch.tv/<name>, WITHOUT the leading '#'.
 channel = "your_channel_here"
-quality = "best"
+quality = "best"              # YouTube live names qualities with the frame rate: "720p60", "1080p60"
 retry_streams = 30          # seconds between "are they live yet?" checks
 
 [paths]
