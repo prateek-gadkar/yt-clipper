@@ -81,13 +81,16 @@ def finalize(cfg, stream_ts: Path, chat_log: Path, rec_start_unix: float, clips_
         model = cfg.get("paths", "whisper_model", default="./models/ggml-medium.en.bin")
         for clip in to_caption:
             print(f"Captioning {clip['clip']} ...")
-            clip["captions"] = captions.caption_clip(
-                ffmpeg,
-                clip["clip"],
-                model,
-                language=cap_cfg.get("language", "en"),
-                burn_in=bool(cap_cfg.get("burn_in", True)),
-            )
+            try:
+                clip["captions"] = captions.caption_clip(
+                    ffmpeg,
+                    clip["clip"],
+                    model,
+                    language=cap_cfg.get("language", "en"),
+                    burn_in=bool(cap_cfg.get("burn_in", True)),
+                )
+            except Exception as exc:  # captions are best-effort — never kill the run
+                clip["captions"] = {"skipped": f"unexpected caption error: {exc}"}
             if clip["captions"].get("skipped"):
                 print(f"  captions skipped: {clip['captions']['skipped']}")
 

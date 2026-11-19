@@ -6,6 +6,10 @@ Pipeline:
   3. if burn_in: ffmpeg renders *.captioned.mp4 with the subtitles baked in
 
 Everything runs on your machine. No API keys, no accounts, no cost.
+
+Failure policy: captioning is best-effort. Any failure returns a dict with a
+human-readable reason in `skipped` (or raises CaptionError for misuse) — it
+must never crash the finalize pipeline and take the clips down with it.
 """
 
 from __future__ import annotations
@@ -15,9 +19,16 @@ import subprocess
 from pathlib import Path
 
 
+def _tail(raw: bytes | str | None, limit: int = 800) -> str:
+    if not raw:
+        return ""
+    if isinstance(raw, bytes):
+        raw = raw.decode("utf-8", "replace")
+    return raw.strip()[-limit:]
+
+
 def find_whisper_cli() -> str | None:
-    import os as _os
-    import sys as _sys
+    import sys
     from pathlib import Path as _Path
 
     for name in ("whisper-cli", "whisper-cpp"):
@@ -25,7 +36,7 @@ def find_whisper_cli() -> str | None:
         if hit:
             return hit
         candidates = [
-            _Path(_sys.executable).parent / name,          # same venv/bin
+            _Path(sys.executable).parent / name,          # same venv/bin
             _Path.home() / ".local" / "bin" / name,        # install.sh symlinks here
         ]
         for cand in candidates:
@@ -60,29 +71,45 @@ def caption_clip(
         return result
 
     wav = clip.with_suffix(".wav")
-    subprocess.run(
-        [ffmpeg, "-y", "-i", str(clip), "-ar", "16000", "-ac", "1", str(wav)],
-        check=True, capture_output=True,
-    )
+    try:
+        subprocess.run(
+            [ffmpeg, "-y", "-i", str(clip), "-ar", "16000", "-ac", "1", str(wav)],
+            check=True, capture_output=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        result["skipped"] = f"ffmpeg WAV extraction failed (exit {exc.returncode}): {_tail(exc.stderr)}"
+        return result
 
     out_base = clip.with_suffix("")  # whisper appends .srt
-    subprocess.run(
-        [cli, "-m", str(model), "-f", str(wav), "-osrt", "-of", str(out_base), "-l", language],
-        check=True, capture_output=True,
-    )
+    try:
+        subprocess.run(
+            [cli, "-m", str(model), "-f", str(wav), "-osrt", "-of", str(out_base), "-l", language],
+            check=True, capture_output=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        result["skipped"] = (
+            f"whisper-cli exited {exc.returncode}: "
+            f"{_tail(exc.stderr) or _tail(exc.stdout) or 'no output — the model file is the prime suspect; check it with ls -lh'}"
+        )
+        result["wav"] = str(wav)  # keep it around so the run can be reproduced
+        return result
+
     srt = clip.with_suffix(".srt")
     wav.unlink(missing_ok=True)
     result["srt"] = str(srt) if srt.exists() else None
 
     if burn_in and result["srt"]:
         out = clip.with_name(clip.stem + ".captioned.mp4")
-        subprocess.run(
-            [
-                ffmpeg, "-y", "-i", str(clip),
-                "-vf", f"subtitles={_subs_filter_escape(str(srt.resolve()))}",
-                "-c:a", "copy", str(out),
-            ],
-            check=True, capture_output=True,
-        )
-        result["captioned"] = str(out)
+        try:
+            subprocess.run(
+                [
+                    ffmpeg, "-y", "-i", str(clip),
+                    "-vf", f"subtitles={_subs_filter_escape(str(srt.resolve()))}",
+                    "-c:a", "copy", str(out),
+                ],
+                check=True, capture_output=True,
+            )
+            result["captioned"] = str(out)
+        except subprocess.CalledProcessError as exc:
+            result["skipped"] = f"subtitle burn-in failed (exit {exc.returncode}): {_tail(exc.stderr)} (the .srt was still produced)"
     return result
